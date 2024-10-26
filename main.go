@@ -1,6 +1,7 @@
 package main
 
 import (
+    "errors"
     "github.com/gin-gonic/gin"
     "os"
     "strconv"
@@ -33,48 +34,18 @@ func main() {
 }
 
 func (context *EventListenerContext) RedirectToSlack(c *gin.Context) {
-    accountIdParam := c.Query("account_id")
-    clientIdParam := c.Query("client_id")
-
     var accountId int
     var clientId int
 
     var err error
 
-    if accountIdParam == "" {
+    accountId, err = GetIntegerFromQuery(c, "account_id")
+    clientId, err = GetIntegerFromQuery(c, "client_id")
+
+    if accountId == 0 || clientId == 0 {
         c.JSON(400, gin.H{
-            "error": "The account_id query parameter is required.",
+            "error": "The account_id and client_id query parameters are required.",
         })
-
-        return
-    }
-
-    accountId, err = strconv.Atoi(accountIdParam)
-
-    if err != nil {
-        c.JSON(400, gin.H{
-            "error": "The account_id query parameter must be an integer.",
-        })
-
-        return
-    }
-
-    if clientIdParam == "" {
-        c.JSON(400, gin.H{
-            "error": "The client_id query parameter is required.",
-        })
-
-        return
-    }
-
-    clientId, err = strconv.Atoi(clientIdParam)
-
-    if err != nil {
-        c.JSON(400, gin.H{
-            "error": "The client_id query parameter must be an integer.",
-        })
-
-        return
     }
 
     slackLink, err := GetSlackLink(context, accountId, clientId)
@@ -127,4 +98,22 @@ func (context *EventListenerContext) ReceiveSlackEvent(c *gin.Context) {
     }
 
     c.JSON(200, response)
+}
+
+func GetIntegerFromQuery(c *gin.Context, queryParam string) (int, error) {
+    queryValue := c.Query(queryParam)
+
+    if queryValue == "" {
+        errorMessage := "The query parameter " + queryParam + " is required."
+
+        return 0, errors.New(errorMessage)
+    }
+
+    intValue, err := strconv.Atoi(queryValue)
+
+    if err != nil {
+        return 0, err
+    }
+
+    return intValue, nil
 }
